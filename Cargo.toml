@@ -8,3 +8,6 @@ crate-type = [ "cdylib" ]
 
 [dependencies]
 dnsoverhttps = "0.1.0"
+
+[build-dependencies]
+cc = "1.0"
