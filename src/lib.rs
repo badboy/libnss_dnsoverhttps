@@ -10,6 +10,9 @@ type NssStatus = i32;
 
 const AF_INET : i32 = 2;
 const AF_INET6 : i32 = 10;
+const NSS_STATUS_UNAVAIL : i32 = -1;
+const EINVAL : i32 = 22;
+const NO_RECOVERY : i32 = 3;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -46,7 +49,7 @@ extern {
                         af: i32,
                         result: *mut u8,
                         buffer: *mut c_char, buflen: usize,
-                        errnop: i32, h_errnop: *mut i32,
+                        errnop: *mut i32, h_errnop: *mut i32,
                         ttlp: *mut i32, canonp: *mut *mut c_char,
                         addr: *const AddrTuple, addr_len: usize) -> NssStatus;
 
@@ -72,7 +75,14 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname4_r(
     unsafe {
         let slice = CStr::from_ptr(orig_name);
         let name = slice.to_string_lossy();
-        let addrs = resolve_host(&name).unwrap();
+        let addrs = match resolve_host(&name) {
+            Ok(a) => a,
+            Err(_) => {
+                *errnop = EINVAL;
+                *h_errnop = NO_RECOVERY;
+                return NSS_STATUS_UNAVAIL;
+            }
+        };
         let addrs : Vec<_> = addrs.into_iter().map(ip_addr_to_tuple).collect();
 
         write_addresses4(orig_name, pat, buffer, buflen, errnop, h_errnop, ttlp,
@@ -86,13 +96,20 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname3_r(
     af: i32,
     result: *mut u8,
     buffer: *mut c_char, buflen: usize,
-    errnop: i32, h_errnop: *mut i32,
+    errnop: *mut i32, h_errnop: *mut i32,
     ttlp: *mut i32, canonp: *mut *mut c_char) -> NssStatus {
 
     unsafe {
         let slice = CStr::from_ptr(orig_name);
         let name = slice.to_string_lossy();
-        let addrs = resolve_host(&name).unwrap();
+        let addrs = match resolve_host(&name) {
+            Ok(a) => a,
+            Err(_) => {
+                *errnop = EINVAL;
+                *h_errnop = NO_RECOVERY;
+                return NSS_STATUS_UNAVAIL;
+            }
+        };
         let addrs : Vec<_> = addrs.into_iter()
             .filter(|addr| {
                 if af == AF_INET {
