@@ -37,7 +37,7 @@ fn ip_addr_to_tuple(addr: IpAddr) -> AddrTuple {
             let mut data = [0; 16];
             data.copy_from_slice(&octets);
             AddrTuple {
-                family: AF_INET,
+                family: AF_INET6,
                 addr: data,
             }
         }
