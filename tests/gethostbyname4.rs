@@ -14,7 +14,7 @@ use nss_dnsoverhttps::*;
 static START: Once = ONCE_INIT;
 
 #[test]
-fn resolves_4() {
+fn resolves() {
     START.call_once(|| {
         env_logger::init();
     });
@@ -70,7 +70,7 @@ fn resolves_4() {
 }
 
 #[test]
-fn resolves_4_nonexistent() {
+fn resolves_nonexistent() {
     START.call_once(|| {
         env_logger::init();
     });
@@ -102,7 +102,7 @@ fn resolves_4_nonexistent() {
 }
 
 #[test]
-fn resolves_4_smallbuffer() {
+fn resolves_smallbuffer() {
     START.call_once(|| {
         env_logger::init();
     });
