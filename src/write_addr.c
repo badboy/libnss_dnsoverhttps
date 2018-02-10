@@ -86,5 +86,5 @@ enum nss_status write_addresses3(
 	if (canonp)
 		*canonp = r_name;
 
-	return NSS_STATUS_NOTFOUND;
+	return NSS_STATUS_SUCCESS;
 }

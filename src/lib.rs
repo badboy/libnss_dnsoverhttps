@@ -5,7 +5,6 @@ extern crate log;
 
 use std::os::raw::c_char;
 use std::ffi::CStr;
-use std::net::IpAddr;
 use std::ptr;
 
 use dnsoverhttps::resolve_host;
@@ -17,49 +16,9 @@ mod log;
 mod write;
 mod consts;
 mod structs;
-use write::{write_addresses4};
+use write::{write_addresses4, write_addresses3};
 use consts::{errno, netdb, af};
-pub use structs::{nss_status, gaih_addrtuple};
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct AddrTuple {
-    family: i32,
-    addr: [u8; 16]
-}
-
-fn ip_addr_to_tuple(addr: IpAddr) -> AddrTuple {
-    match addr {
-        IpAddr::V4(v4) => {
-            let octets = v4.octets();
-            let mut data = [0; 16];
-            data[0..4].copy_from_slice(&octets);
-            AddrTuple {
-                family: af::INET,
-                addr: data,
-            }
-        }
-        IpAddr::V6(v6) => {
-            let octets = v6.octets();
-            let mut data = [0; 16];
-            data.copy_from_slice(&octets);
-            AddrTuple {
-                family: af::INET6,
-                addr: data,
-            }
-        }
-    }
-}
-
-extern {
-    fn write_addresses3(name: *const c_char,
-                        af: i32,
-                        result: *mut u8,
-                        buffer: *mut c_char, buflen: usize,
-                        errnop: *mut i32, h_errnop: *mut i32,
-                        ttlp: *mut i32, canonp: *mut *mut c_char,
-                        addr: *const AddrTuple, addr_len: usize) -> nss_status;
-}
+pub use structs::{nss_status, gaih_addrtuple, hostent};
 
 #[no_mangle]
 pub extern "C" fn _nss_dnsoverhttps_gethostbyname4_r(
@@ -97,14 +56,17 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname4_r(
 pub extern "C" fn _nss_dnsoverhttps_gethostbyname3_r(
     orig_name: *const c_char,
     af: i32,
-    result: *mut u8,
-    buffer: *mut c_char, buflen: usize,
+    result: *mut hostent,
+    buffer: *mut u8, buflen: usize,
     errnop: *mut i32, h_errnop: *mut i32,
-    ttlp: *mut i32, canonp: *mut *mut c_char) -> nss_status {
+    ttlp: *mut i32, canonp: *mut *mut u8) -> nss_status {
+
+    debug!("Resolving with gethostbyname3_r");
 
     unsafe {
         let slice = CStr::from_ptr(orig_name);
         let name = slice.to_string_lossy();
+        debug!("Resolving host '{}'", name);
         let addrs = match resolve_host(&name) {
             Ok(a) => a,
             Err(_) => {
@@ -123,11 +85,12 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname3_r(
                     true
                 }
             })
-            .map(ip_addr_to_tuple)
             .collect();
+        debug!("Found {} addresses", addrs.len());
+        debug!("Addresses: {:?}", addrs);
 
         write_addresses3(orig_name, af, result, buffer, buflen, errnop, h_errnop, ttlp, canonp,
-                         addrs.as_ptr(), addrs.len())
+                         &addrs)
     }
 }
 
@@ -137,8 +100,8 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname3_r(
 pub extern "C" fn _nss_dnsoverhttps_gethostbyname2_r(
     name: *const c_char,
     af: i32,
-    host: *mut u8,
-    buffer: *mut c_char, buflen: usize,
+    host: *mut hostent,
+    buffer: *mut u8, buflen: usize,
     errnop: *mut i32, h_errnop: *mut i32) -> nss_status {
     return _nss_dnsoverhttps_gethostbyname3_r(
         name,
@@ -153,8 +116,8 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname2_r(
 #[no_mangle]
 pub extern "C" fn _nss_dnsoverhttps_gethostbyname_r(
     name: *const c_char,
-    host: *mut u8,
-    buffer: *mut c_char, buflen: usize,
+    host: *mut hostent,
+    buffer: *mut u8, buflen: usize,
     errnop: *mut i32, h_errnop: *mut i32) -> nss_status {
     let mut ret = _nss_dnsoverhttps_gethostbyname3_r(
         name,

@@ -1,4 +1,5 @@
 extern crate nss_dnsoverhttps;
+#[cfg(feature = "log")]
 extern crate log;
 extern crate env_logger;
 
@@ -95,6 +96,8 @@ fn resolves_4_nonexistent() {
 
         assert_eq!(3, errnop);
         assert_eq!(3, h_errnop);
+
+        let _pat_buf = Box::from_raw(pat_buf);
     }
 }
 
@@ -125,5 +128,7 @@ fn resolves_4_smallbuffer() {
 
         assert_eq!(34, errnop);
         assert_eq!(-1, h_errnop);
+
+        let _pat_buf = Box::from_raw(pat_buf);
     }
 }

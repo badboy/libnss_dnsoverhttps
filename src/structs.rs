@@ -15,3 +15,12 @@ pub struct gaih_addrtuple {
     pub addr: [u32; 4],
     pub scopeid: u32,
 }
+
+#[repr(C)]
+pub struct hostent {
+    pub h_name: *mut u8,
+    pub h_aliases: *mut *mut u8,
+    pub h_addrtype: i32,
+    pub h_length: i32,
+    pub h_addr_list: *mut *mut u8,
+}
