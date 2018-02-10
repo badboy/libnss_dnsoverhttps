@@ -10,68 +10,6 @@ struct addr_tuple {
 	char addr[16];
 };
 
-enum nss_status write_addresses4(
-		const char *name,
-		struct gaih_addrtuple **pat,
-		char *buffer, size_t buflen,
-		int *errnop, int *h_errnop,
-		int32_t *ttlp,
-		struct addr_tuple *addrs, size_t addr_len) {
-
-	if (addr_len == 0) {
-		*errnop = ESRCH;
-		*h_errnop = HOST_NOT_FOUND;
-		return NSS_STATUS_NOTFOUND;
-	}
-
-	/* First, append name */
-	char *r_name;
-	r_name = buffer;
-	size_t l = strlen(name);
-	size_t ms = ALIGN(l+1) + ALIGN(sizeof(struct gaih_addrtuple)) * addr_len;
-	if (buflen < ms) {
-		*errnop = ERANGE;
-		*h_errnop = NETDB_INTERNAL;
-		return NSS_STATUS_TRYAGAIN;
-	}
-
-	memcpy(r_name, name, l+1);
-	int idx = ALIGN(l+1);
-
-	/* Second, append addresses */
-	struct gaih_addrtuple *r_tuple, *r_tuple_first = NULL;
-	r_tuple_first = (struct gaih_addrtuple*) (buffer + idx);
-
-	for (size_t i=0; i < addr_len; i++) {
-		struct addr_tuple *in_tuple = (struct addr_tuple*) &addrs[i];
-		r_tuple = (struct gaih_addrtuple*) (buffer + idx);
-		r_tuple->next = i == addr_len-1 ? NULL : (struct gaih_addrtuple*) ((char*) r_tuple + ALIGN(sizeof(struct gaih_addrtuple)));
-
-		r_tuple->name = r_name;
-		r_tuple->scopeid = 0;
-		r_tuple->family = in_tuple->family;
-		memcpy(r_tuple->addr, &in_tuple->addr, 16);
-
-		idx += ALIGN(sizeof(struct gaih_addrtuple));
-	}
-
-	if (*pat) {
-		**pat = *r_tuple_first;
-	}
-	else {
-		*pat = r_tuple_first;
-	}
-
-	if (ttlp)
-		*ttlp = 0;
-
-	*errnop = 0;
-	*h_errnop = NETDB_SUCCESS;
-	h_errno = 0;
-
-	return NSS_STATUS_SUCCESS;
-}
-
 static inline size_t FAMILY_ADDRESS_SIZE(int family) {
 	return family == AF_INET6 ? 16 : 4;
 }
