@@ -1,4 +1,7 @@
 extern crate dnsoverhttps;
+#[cfg(feature = "log")]
+#[macro_use]
+extern crate log;
 
 use std::os::raw::c_char;
 use std::ffi::CStr;
@@ -67,9 +70,12 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname4_r(
     h_errnop: *mut i32,
     ttlp: *mut i32) -> nss_status {
 
+    debug!("Resolving with gethostbyname4_r");
+
     unsafe {
         let slice = CStr::from_ptr(orig_name);
         let name = slice.to_string_lossy();
+        debug!("Resolving host '{}'", name);
         let addrs = match resolve_host(&name) {
             Ok(a) => a,
             Err(_) => {
@@ -78,6 +84,8 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname4_r(
                 return nss_status::Unavail;
             }
         };
+        debug!("Found {} addresses", addrs.len());
+        debug!("Addresses: {:?}", addrs);
 
         write_addresses4(orig_name, pat, buffer, buflen, errnop, h_errnop, ttlp,
             &addrs)
