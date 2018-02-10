@@ -6,6 +6,7 @@ extern crate log;
 use std::os::raw::c_char;
 use std::ffi::CStr;
 use std::net::IpAddr;
+use std::ptr;
 
 use dnsoverhttps::resolve_host;
 
@@ -128,4 +129,52 @@ pub extern "C" fn _nss_dnsoverhttps_gethostbyname3_r(
         write_addresses3(orig_name, af, result, buffer, buflen, errnop, h_errnop, ttlp, canonp,
                          addrs.as_ptr(), addrs.len())
     }
+}
+
+// Forwarding implementations
+
+#[no_mangle]
+pub extern "C" fn _nss_dnsoverhttps_gethostbyname2_r(
+    name: *const c_char,
+    af: i32,
+    host: *mut u8,
+    buffer: *mut c_char, buflen: usize,
+    errnop: *mut i32, h_errnop: *mut i32) -> nss_status {
+    return _nss_dnsoverhttps_gethostbyname3_r(
+        name,
+        af,
+        host,
+        buffer, buflen,
+        errnop, h_errnop,
+        ptr::null_mut(),
+        ptr::null_mut());
+}
+
+#[no_mangle]
+pub extern "C" fn _nss_dnsoverhttps_gethostbyname_r(
+    name: *const c_char,
+    host: *mut u8,
+    buffer: *mut c_char, buflen: usize,
+    errnop: *mut i32, h_errnop: *mut i32) -> nss_status {
+    let mut ret = _nss_dnsoverhttps_gethostbyname3_r(
+        name,
+        af::INET6,
+        host,
+        buffer, buflen,
+        errnop, h_errnop,
+        ptr::null_mut(),
+        ptr::null_mut());
+
+	if ret == nss_status::NotFound {
+        ret = _nss_dnsoverhttps_gethostbyname3_r(
+            name,
+            af::INET,
+            host,
+            buffer, buflen,
+            errnop, h_errnop,
+            ptr::null_mut(),
+            ptr::null_mut());
+    }
+
+	return ret;
 }
