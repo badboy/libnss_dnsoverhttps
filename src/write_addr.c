@@ -148,7 +148,7 @@ enum nss_status write_addresses3(
 	if (canonp)
 		*canonp = r_name;
 
-	return NSS_STATUS_NOTFOUND;
+	return NSS_STATUS_SUCCESS;
 }
 
 enum nss_status _nss_dnsoverhttps_gethostbyname3_r(
